@@ -34,7 +34,6 @@
     import androidx.compose.ui.Modifier
     import androidx.compose.ui.platform.LocalContext
     import androidx.compose.ui.unit.dp
-    import kotlinx.coroutines.CoroutineScope
     import kotlinx.coroutines.Dispatchers
     import kotlinx.coroutines.launch
     import kotlinx.coroutines.withContext
@@ -46,9 +45,13 @@
     import androidx.compose.foundation.layout.width // <-- Thêm import này
     import androidx.compose.material3.CircularProgressIndicator
     import androidx.compose.foundation.layout.Box
+    import androidx.compose.material3.DropdownMenu
+    import androidx.compose.material3.DropdownMenuItem
     // for ver2
     import java.util.LinkedList
     import java.util.Queue
+    import androidx.core.net.toUri
+
     val sdkInt = Build.VERSION.SDK_INT
     class MainActivity : ComponentActivity() {
         override fun onCreate(savedInstanceState: Bundle?) {
@@ -94,12 +97,30 @@ fun FileScannerAppV1() {
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val rootFolders = listOf(
+        "ALL",
+        Environment.DIRECTORY_DOWNLOADS,
+        Environment.DIRECTORY_DOCUMENTS,
+        Environment.DIRECTORY_DCIM,
+        Environment.DIRECTORY_MOVIES,
+        Environment.DIRECTORY_PICTURES
+    )
+    var selectedFolder by remember { mutableStateOf(Environment.DIRECTORY_DOWNLOADS) }
+    var isMenuExpanded by remember { mutableStateOf(false) }
 
     // --- SỬA 1: Định nghĩa thư mục "bẫy" ---
-    // Cả hai nút sẽ cùng làm việc với thư mục "deep_test" bên trong "Downloads"
-    val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-    val trapDir = File(downloadDir, "deep_test_trap") // Tên thư mục bẫy
 
+//    val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+//    val trapDir = File(downloadDir, "deep_test_trap") // Tên thư mục bẫy
+    val rootDir =
+        if (selectedFolder == "ALL") {
+            Environment.getExternalStorageDirectory()   // /storage/emulated/0
+        } else {
+            Environment.getExternalStoragePublicDirectory(selectedFolder)
+        }
+
+    //val trapDir = File(rootDir, "deep_test_trap")
+    val trapDir = rootDir
     Scaffold(
         topBar = { TopAppBar(title = { Text("File Scanner V1 (Chưa tối ưu)") }) }
     ) { paddingValues ->
@@ -110,6 +131,27 @@ fun FileScannerAppV1() {
                 .padding(all = 16.dp)
         )
         {
+            Column {
+                Text("Chọn thư mục gốc:")
+
+                Button(onClick = { isMenuExpanded = true }) {
+                    Text(selectedFolder)
+                }
+
+                DropdownMenu(expanded = isMenuExpanded, onDismissRequest = { isMenuExpanded = false }) {
+                    rootFolders.forEach { folderName ->
+                        DropdownMenuItem(
+                            text = { Text(folderName) },
+                            onClick = {
+                                selectedFolder = folderName
+                                isMenuExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+
             Button(onClick = {
                 // --- SỬA 2: Nút Scan File ---
                 // Chỉ cần kiểm tra quyền và chạy logic
@@ -143,7 +185,7 @@ fun FileScannerAppV1() {
                     } else {
                         // Xin quyền
                         val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                        intent.data = Uri.parse("package:${context.packageName}")
+                        intent.data = "package:${context.packageName}".toUri()
                         context.startActivity(intent)
                     }
                 } else {
@@ -167,7 +209,6 @@ fun FileScannerAppV1() {
                                 uploadStatus = "Đang quét "
                             }
                             // Lần này sẽ không crash n
-                            //   val result = scanFilesRecursively(trapDir)
                             val result = scanFilesIteratively(trapDir)
 
                             withContext(Dispatchers.Main) {
@@ -188,7 +229,7 @@ fun FileScannerAppV1() {
                     } else {
                         // Xin quyền
                         val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                        intent.data = Uri.parse("package:${context.packageName}")
+                        intent.data = "package:${context.packageName}".toUri()
                         context.startActivity(intent)
                     }
                 } else {
@@ -246,14 +287,50 @@ fun FileScannerAppV1() {
                             .padding(4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(file.name, modifier = Modifier.weight(1f))
+                      //  Text(file.name, modifier = Modifier.weight(1f))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(file.name)
+                            Text(
+                                formatSize(file.length()),
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        // upload tren MainThread
+//                        Button(onClick = {
+//                            uploadStatus = "Uploading ${file.name}..."
+//                            Thread.sleep(3000)
+//                            uploadStatus = "Uploaded ${file.name}"
+//                        })
+//                        {
+//                            Text("Upload")
+//                        }
+                        Button(
+                            onClick = {
+                                scope.launch(Dispatchers.IO) {
+                                    withContext(Dispatchers.Main) {
+                                        isScanning = true
+                                        uploadStatus = "Uploading ${file.name} (Real)..."
+                                    }
 
-                        Button(onClick = {
-                            uploadStatus = "Uploading ${file.name}..."
-                            Thread.sleep(3000)
-                            uploadStatus = "Uploaded ${file.name}"
-                        }) {
-                            Text("Upload")
+                                    // --- SỬA Ở ĐÂY ---
+                                    // 1. Gọi hàm và nhận kết quả
+                                    val isSuccess = uploadFileReal(file)
+                                    // --- HẾT SỬA ---
+
+                                    withContext(Dispatchers.Main) {
+                                        isScanning = false
+                                        // 2. Cập nhật UI dựa trên kết quả
+                                        if (isSuccess) {
+                                            uploadStatus = "Uploaded ${file.name} (Real)!"
+                                        } else {
+                                            uploadStatus = "Upload ${file.name} FAILED"
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = !isGenerating && !isScanning
+                        ) {
+                            Text("Upload (Real)")
                         }
                     }
                 }
@@ -303,4 +380,13 @@ fun FileScannerAppV1() {
             }
         }
         return fileList
+    }
+    fun formatSize(size: Long): String {
+        if (size < 1024) return "$size B"
+        val kb = size / 1024.0
+        if (kb < 1024) return "%.2f KB".format(kb)
+        val mb = kb / 1024.0
+        if (mb < 1024) return "%.2f MB".format(mb)
+        val gb = mb / 1024.0
+        return "%.2f GB".format(gb)
     }
