@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-11-13T08:41:59.535924681Z">
+        <DropdownSelection timestamp="2025-11-15T03:11:29.419345480Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=/home/duckanh/.android/avd/nightwatch-android-11.avd" />
+              <DeviceId pluginId="LocalEmulator" identifier="path=/home/duckanh/.android/avd/Medium_Phone.avd" />
             </handle>
           </Target>
         </DropdownSelection>
