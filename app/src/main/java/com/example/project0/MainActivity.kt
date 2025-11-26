@@ -1,6 +1,5 @@
 package com.example.project0
 
-import android.app.Activity
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
@@ -43,6 +42,13 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.LinkedList
 import java.util.Queue
+
+//import caching
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+
 
 val sdkInt = Build.VERSION.SDK_INT
 private lateinit var googleAuthClient: GoogleAuthClient
@@ -115,6 +121,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+//xoa cache
+
+fun clearCache(context: android.content.Context) {
+    val cacheDir = File(context.filesDir, "cache_scan")
+    val cacheFile = File(cacheDir, cacheFileName)
+    if (cacheFile.exists()) cacheFile.delete()
+}
+
 
 fun signOutGoogle() {
     googleAuthClient.getSignInClient().signOut()
@@ -196,6 +210,67 @@ fun formatSize(size: Long): String {
     return "%.2f GB".format(gb)
 }
 
+@Serializable
+data class CachedFile(
+    val name: String,
+    val size: Long,
+    val path: String
+)
+
+@Serializable
+data class CacheData(
+    val rootPath: String,
+    val lastModified: Long,
+    val files: List<CachedFile>
+)
+
+val cacheFileName = "scan_cache.json"
+
+
+//Ham luu cache
+fun saveCache(context: android.content.Context, root: File, files: List<File>) {
+    val cacheDir = File(context.filesDir, "cache_scan")
+    cacheDir.mkdirs()
+
+    val cacheFile = File(cacheDir, cacheFileName)
+
+    val mapped = files.map {
+        CachedFile(it.name, it.length(), it.absolutePath)
+    }
+
+    val json = Json.encodeToString(
+        CacheData(
+            rootPath = root.absolutePath,
+            lastModified = root.lastModified(),
+            files = mapped
+        )
+    )
+
+    cacheFile.writeText(json)
+}
+
+//ham load cache
+fun loadCache(context: android.content.Context, root: File): List<File>? {
+    val cacheDir = File(context.filesDir, "cache_scan")
+    val cacheFile = File(cacheDir, cacheFileName)
+    if (!cacheFile.exists()) return null
+
+    val json = cacheFile.readText()
+
+    return try {
+        val data = Json.decodeFromString<CacheData>(json)
+
+        if (data.rootPath != root.absolutePath) return null
+        if (data.lastModified != root.lastModified()) return null
+
+        data.files.map { File(it.path) }
+
+    } catch (e: Exception) {
+        null
+    }
+}
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 
 @Composable
@@ -219,6 +294,9 @@ fun FileScannerAppV1(
     var uploadStatus by remember { mutableStateOf("Chưa upload") }
     var isGenerating by remember { mutableStateOf(false) }
     var isScanning by remember { mutableStateOf(false) }
+
+    //bien tinh thgi scannfile
+    var scanTime by remember { mutableStateOf<Long?>(null) }
 
     //val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -306,11 +384,18 @@ fun FileScannerAppV1(
                         if (trapDir.exists()) {
                             scope.launch(Dispatchers.IO) {
                                 withContext(Dispatchers.Main) {
+                                    scanTime = null
                                     isScanning = true
                                     uploadStatus = "Đang quét (dùng đệ quy)..."
                                 }
 
+                                //val result = scanFilesRecursively(trapDir)
+
+                                val start = System.nanoTime()
                                 val result = scanFilesRecursively(trapDir)
+                                val end = System.nanoTime()
+                                scanTime = end - start
+
 
                                 withContext(Dispatchers.Main) {
                                     isScanning = false
@@ -350,11 +435,18 @@ fun FileScannerAppV1(
                         if (trapDir.exists()) {
                             scope.launch(Dispatchers.IO) {
                                 withContext(Dispatchers.Main) {
+                                    scanTime = null
                                     isScanning = true
                                     uploadStatus = "Đang quét (khử đệ quy)..."
                                 }
 
+                              //  val result = scanFilesIteratively(trapDir)
+
+                                val start = System.nanoTime()
                                 val result = scanFilesIteratively(trapDir)
+                                val end = System.nanoTime()
+                                scanTime = end - start
+
 
                                 withContext(Dispatchers.Main) {
                                     isScanning = false
@@ -387,39 +479,208 @@ fun FileScannerAppV1(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Nút Generate Deep Folder
+            //nut scan dequy + cache
             Button(
                 onClick = {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-                        Environment.isExternalStorageManager()
-                    ) {
+                    val logic = {
                         scope.launch(Dispatchers.IO) {
-                            withContext(Dispatchers.Main) {
-                                isGenerating = true
-                                uploadStatus = "Đang tạo 1,000 thư mục..."
+
+                            val cached = loadCache(context, trapDir)
+                            if (cached != null) {
+                                val start = System.nanoTime()
+                                val end = System.nanoTime()
+                                scanTime = end - start
+
+                                withContext(Dispatchers.Main) {
+                                    uploadStatus = "Dùng cache (Đệ quy)"
+                                    files = cached
+                                }
+                                return@launch
                             }
 
-                            generateDeepFolder(trapDir, 1000)
+                            withContext(Dispatchers.Main) {
+                                scanTime = null
+                                isScanning = true
+                                uploadStatus = "Đang quét (Đệ quy + Cache)..."
+                            }
+
+                            val start = System.nanoTime()
+                            val result = scanFilesRecursively(trapDir)
+
+
+
+                            saveCache(context, trapDir, result)
+                            val end = System.nanoTime()
+                            scanTime = end - start
 
                             withContext(Dispatchers.Main) {
-                                isGenerating = false
-                                uploadStatus = "Đã tạo xong deep folder!"
+                                isScanning = false
+                                uploadStatus = "Hoàn tất (Đệ quy + Cache)"
+                                files = result
                             }
                         }
-                    } else {
-                        uploadStatus = "Cần cấp quyền 'Tất cả tệp' trước!"
                     }
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                        !Environment.isExternalStorageManager()
+                    ) {
+                        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                        intent.data = "package:${context.packageName}".toUri()
+                        context.startActivity(intent)
+                    } else logic()
                 },
-                enabled = !isGenerating && !isScanning
+                enabled = !isScanning && !isGenerating
             ) {
-                if (isGenerating) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Đang tạo...")
+                Text("Scan File (Đệ quy + Cache)")
+            }
+
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            //Nut scan khu de quy + cache
+            Button(
+                onClick = {
+                    val logic = {
+                        scope.launch(Dispatchers.IO) {
+
+                            val cached = loadCache(context, trapDir)
+                            if (cached != null) {
+                                val start = System.nanoTime()
+                                val end = System.nanoTime()
+                                scanTime = end - start
+
+                                withContext(Dispatchers.Main) {
+                                    uploadStatus = "Dùng cache (Iterative)"
+                                    files = cached
+                                }
+                                return@launch
+                            }
+
+                            withContext(Dispatchers.Main) {
+                                scanTime = null
+                                isScanning = true
+                                uploadStatus = "Đang quét (Iterative + Cache)..."
+                            }
+
+                            val start = System.nanoTime()
+                            val result = scanFilesIteratively(trapDir)
+                            saveCache(context, trapDir, result)
+                            val end = System.nanoTime()
+                            scanTime = end - start
+
+                            withContext(Dispatchers.Main) {
+                                isScanning = false
+                                uploadStatus = "Hoàn tất (Iterative + Cache)"
+                                files = result
+                            }
+                        }
                     }
-                } else {
-                    Text("Generate Deep Folder")
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                        !Environment.isExternalStorageManager()
+                    ) {
+                        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                        intent.data = "package:${context.packageName}".toUri()
+                        context.startActivity(intent)
+                    } else logic()
+                },
+                enabled = !isScanning && !isGenerating
+            ) {
+                Text("Scan File (Khử đệ quy + Cache)")
+            }
+
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Nút Generate Deep Folder + xoa CACHE
+//            Button(
+//                onClick = {
+//                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+//                        Environment.isExternalStorageManager()
+//                    ) {
+//                        scope.launch(Dispatchers.IO) {
+//                            withContext(Dispatchers.Main) {
+//                                isGenerating = true
+//                                uploadStatus = "Đang tạo 1,000 thư mục..."
+//                            }
+//
+//                            generateDeepFolder(trapDir, 1000)
+//
+//                            withContext(Dispatchers.Main) {
+//                                isGenerating = false
+//                                uploadStatus = "Đã tạo xong deep folder!"
+//                            }
+//                        }
+//                    } else {
+//                        uploadStatus = "Cần cấp quyền 'Tất cả tệp' trước!"
+//                    }
+//                },
+//                enabled = !isGenerating && !isScanning
+//            ) {
+//                if (isGenerating) {
+//                    Row(verticalAlignment = Alignment.CenterVertically) {
+//                        Text("Đang tạo...")
+//                    }
+//                } else {
+//                    Text("Generate Deep Folder")
+//                }
+//            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Nút Generate Deep Folder
+                Button(
+                    onClick = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                            Environment.isExternalStorageManager()
+                        ) {
+                            scope.launch(Dispatchers.IO) {
+                                withContext(Dispatchers.Main) {
+                                    isGenerating = true
+                                    uploadStatus = "Đang tạo 1,000 thư mục..."
+                                }
+
+                                generateDeepFolder(trapDir, 1000)
+
+                                withContext(Dispatchers.Main) {
+                                    isGenerating = false
+                                    uploadStatus = "Đã tạo xong deep folder!"
+                                }
+                            }
+                        } else {
+                            uploadStatus = "Cần cấp quyền 'Tất cả tệp' trước!"
+                        }
+                    },
+                    enabled = !isGenerating && !isScanning,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (isGenerating) {
+                        Text("Đang tạo...")
+                    } else {
+                        Text("Generate Deep Folder")
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Nút XÓA CACHE
+                Button(
+                    onClick = {
+                        clearCache(context)
+                        uploadStatus = "Đã xóa cache!"
+                        scanTime = null     // reset hiển thị thời gian
+                        files = emptyList() // tùy chọn: xoá danh sách file
+                    },
+                    enabled = !isGenerating && !isScanning,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Xóa Cache")
                 }
             }
+
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -473,6 +734,13 @@ fun FileScannerAppV1(
 
             Spacer(modifier = Modifier.height(16.dp))
             Text("Trạng thái: $uploadStatus")
+
+            //UI hien thi thoi gian
+            scanTime?.let { ns ->
+                val ms = ns / 1_000_000.0
+                Text("Thời gian quét: ${ns} ns (≈ %.3f ms)".format(ms))
+            }
+
         }
     }
 }
