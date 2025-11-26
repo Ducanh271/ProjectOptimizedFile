@@ -65,8 +65,8 @@ class MainActivity : ComponentActivity() {
 //BO COMMENT NAY
         googleAuthClient = GoogleAuthClient(
             this,
-            "bivipahm",
-            "bivipahm"
+            "318612317826-2ssobtupov5kajb1lrrpjt069t6j44pf.apps.googleusercontent.com",
+            "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"
         )
         // Tạo launcher đăng nhập
         signInLauncher =
