@@ -58,10 +58,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         googleAuthClient = GoogleAuthClient(
             this,
-            "318612317826-2ssobtupov5kajb1lrrpjt069t6j44pf.apps.googleusercontent.com",
-            "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"
+            BuildConfig.GOOGLE_CLIENT_ID,     // Đã thay chuỗi cứng
+            BuildConfig.GOOGLE_CLIENT_SECRET  // Đã thay chuỗi cứng
         )
         // >>> THÊM ĐOẠN XIN QUYỀN NÀY <<<
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -623,11 +624,7 @@ class FileUploadWorker(context: Context, params: WorkerParameters) : CoroutineWo
 //
 //        super.onCreate(savedInstanceState)
 ////BO COMMENT NAY
-//        googleAuthClient = GoogleAuthClient(
-//            this,
-//            "318612317826-2ssobtupov5kajb1lrrpjt069t6j44pf.apps.googleusercontent.com",
-//            "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"
-//        )
+
 //        // Tạo launcher đăng nhập
 //        signInLauncher =
 //            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,6 +7,13 @@ plugins {
 
     id("org.jetbrains.kotlin.plugin.serialization") version "1.9.0"
 }
+val localProps = Properties().apply {
+    val localFile = rootProject.file("local.properties")
+    if (localFile.exists()) {
+        load(localFile.inputStream())
+    }
+}
+
 
 android {
     namespace = "com.example.project0"
@@ -18,10 +27,16 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        val clientId = localProps.getProperty("GOOGLE_CLIENT_ID") ?: ""
+        val clientSecret = localProps.getProperty("GOOGLE_CLIENT_SECRET") ?: ""
+
+        buildConfigField("String", "GOOGLE_CLIENT_ID", "\"$clientId\"")
+        buildConfigField("String", "GOOGLE_CLIENT_SECRET", "\"$clientSecret\"")
     }
 
     buildTypes {
         release {
+
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -38,6 +53,8 @@ android {
     }
     buildFeatures {
         compose = true
+        // 4. QUAN TRỌNG: Phải bật cái này lên thì mới sinh ra file BuildConfig java
+        buildConfig = true
     }
 }
 
