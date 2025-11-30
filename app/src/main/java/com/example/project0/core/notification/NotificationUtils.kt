@@ -1,4 +1,4 @@
-package com.example.project0
+package com.example.project0.core.notification
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,6 +7,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import android.Manifest
+import android.R
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import android.annotation.SuppressLint // <--- Thêm import này
@@ -31,7 +32,7 @@ fun makeStatusNotification(message: String, context: Context) {
 
     // 2. Xây dựng thông báo
     val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-        .setSmallIcon(android.R.drawable.stat_sys_upload_done) // Icon mặc định của Android
+        .setSmallIcon(R.drawable.stat_sys_upload_done) // Icon mặc định của Android
         .setContentTitle("File Upload")
         .setContentText(message)
         .setPriority(NotificationCompat.PRIORITY_DEFAULT)

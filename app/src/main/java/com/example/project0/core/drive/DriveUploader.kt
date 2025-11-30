@@ -1,4 +1,4 @@
-package com.example.project0
+package com.example.project0.core.drive
 
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
@@ -22,7 +22,7 @@ object DriveUploader {
             """.trimIndent()
 
             val requestBody = MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
+                .setType(MultipartBody.Companion.FORM)
                 .addFormDataPart(
                     "metadata",
                     null,
@@ -55,4 +55,3 @@ object DriveUploader {
         }
     }
 }
-

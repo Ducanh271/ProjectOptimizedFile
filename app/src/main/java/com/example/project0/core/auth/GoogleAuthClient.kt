@@ -1,10 +1,11 @@
-package com.example.project0
+package com.example.project0.core.auth
 
 import android.content.Context
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.Scope
 import com.google.android.gms.tasks.Task
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -28,7 +29,7 @@ class GoogleAuthClient(
             .requestProfile()
             .requestServerAuthCode(clientId, true)
             .requestScopes(
-                com.google.android.gms.common.api.Scope("https://www.googleapis.com/auth/drive.file")
+                Scope("https://www.googleapis.com/auth/drive.file")
             )
             .build()
     )
