@@ -12,6 +12,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.example.project0.core.drive.DriveUploader
+import com.example.project0.core.notification.makeStatusNotification
 import com.example.project0.worker.FileUploadWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -165,8 +166,11 @@ class FileScannerViewModel(
         }
     }
 
-    fun generateDeepFolder(baseDir: File, depth: Int = 500) {
+    fun generateDeepFolder(baseDir: File, depth: Int = 10000) {
         viewModelScope.launch(io) {
+            // 1. Cập nhật trạng thái bắt đầu
+            uploadStatus = "Generating $depth folders..."
+
             var current = baseDir
             current.mkdirs()
             for (i in 1..depth) {
@@ -175,8 +179,14 @@ class FileScannerViewModel(
             }
             try {
                 File(current, "dummy_file.txt").createNewFile()
+
+                // 2. Cập nhật trạng thái khi XONG (giống như Scan xong)
+                uploadStatus = "Done: Generated $depth folders"
+
             } catch (e: Exception) {
                 e.printStackTrace()
+                // 3. Cập nhật trạng thái nếu lỗi
+                uploadStatus = "Error generating folders!"
             }
         }
     }
@@ -352,16 +362,12 @@ class FileScannerViewModel(
     private fun decodeBinaryCache(binary: ByteArray, root: File): List<File>? {
         return try {
             val inp = DataInputStream(ByteArrayInputStream(binary))
-
             val savedRoot = inp.readUTF()
             if (savedRoot != root.absolutePath) return null
-
             val savedModified = inp.readLong()
             if (savedModified != root.lastModified()) return null
-
             val count = inp.readInt()
             val list = ArrayList<File>(count)
-
             repeat(count) {
                 val path = inp.readUTF()
                 inp.readLong() // skip size

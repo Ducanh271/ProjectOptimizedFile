@@ -196,7 +196,7 @@ fun FileScannerScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             FilledTonalButton(
-                                onClick = { viewModel.generateDeepFolder(trapDir, 500) },
+                                onClick = { viewModel.generateDeepFolder(trapDir, 1000) },
                                 modifier = Modifier.weight(1f)
                             ) { Text("Gen Folder", fontSize = 10.sp) }
 
