@@ -30,9 +30,25 @@ class MainActivity : ComponentActivity() {
 
     private val fileScannerViewModel: FileScannerViewModel by viewModels()
 
+    private fun ensureAllFilesPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!android.os.Environment.isExternalStorageManager()) {
+                val intent = Intent(
+                    android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION
+                )
+                intent.data = android.net.Uri.parse("package:$packageName")
+                startActivity(intent)
+            }
+        }
+    }
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
+
+
         super.onCreate(savedInstanceState)
 
+        ensureAllFilesPermission()
         googleAuthClient = GoogleAuthClient(
             this,
             BuildConfig.GOOGLE_CLIENT_ID,
@@ -80,6 +96,7 @@ class MainActivity : ComponentActivity() {
         }
 
         enableEdgeToEdge()
+
         setContent {
             FileScannerScreen(
                 viewModel = fileScannerViewModel,

@@ -1,5 +1,7 @@
 package com.example.project0.ui.filebrowser
 
+import android.R
+import android.R.color.white
 import android.os.Environment
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -161,44 +163,72 @@ fun FileScannerScreen(
                         Spacer(Modifier.height(8.dp))
 
                         Row(
-                            Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            val buttonModifier = Modifier
+                                .weight(1f)
+                                .height(55.dp)       // ép chiều cao cố định để nút nhìn đều
+
                             OutlinedButton(
-                                modifier = Modifier.weight(1f),
+                                modifier = buttonModifier,
                                 onClick = { viewModel.scanRecursive(trapDir) },
                                 enabled = !isScanning
-                            ) { Text("Recursive", fontSize = 10.sp) }
+                            ) {
+                                Text("Recursive", fontSize = 10.sp)
+                            }
 
                             OutlinedButton(
-                                modifier = Modifier.weight(1f),
+                                modifier = buttonModifier,
                                 onClick = { viewModel.scanIterative(trapDir) },
                                 enabled = !isScanning
-                            ) { Text("Iterative", fontSize = 10.sp) }
+                            ) {
+                                Text("Iterative", fontSize = 10.sp)
+                            }
 
                             OutlinedButton(
-                                modifier = Modifier.weight(1f),
+                                modifier = buttonModifier,
                                 onClick = { viewModel.scanWithDiskCache(trapDir) },
                                 enabled = !isScanning
-                            ) { Text("Cache Disk", fontSize = 10.sp) }
+                            ) {
+                                Text("Cache Disk", fontSize = 10.sp)
+                            }
 
                             OutlinedButton(
-                                modifier = Modifier.weight(1f),
+                                modifier = buttonModifier,
                                 onClick = { viewModel.scanWithMemoryCache(trapDir) },
                                 enabled = !isScanning
-                            ) { Text("Cache Mem", fontSize = 10.sp) }
+                            ) {
+                                Text("Cache Mem", fontSize = 10.sp)
+                            }
                         }
 
+
+                        //hang nut chuc nang
                         Row(
                             Modifier
                                 .fillMaxWidth()
                                 .padding(top = 8.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            // Nút mới: CLEAR LIST
+                            FilledTonalButton(
+                                onClick = { viewModel.clearList() },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                )
+                            ) { Text("Clear List", fontSize = 10.sp) }
+
                             FilledTonalButton(
                                 onClick = { viewModel.generateDeepFolder(trapDir, 1000) },
-                                modifier = Modifier.weight(1f)
-                            ) { Text("Gen Folder", fontSize = 10.sp) }
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                )
+                            ) { Text("Gen Folder", fontSize = 10.sp, color = Color.White) }
 
                             FilledTonalButton(
                                 onClick = { viewModel.clearCache() },
@@ -206,8 +236,11 @@ fun FileScannerScreen(
                                 colors = ButtonDefaults.filledTonalButtonColors(
                                     containerColor = MaterialTheme.colorScheme.errorContainer
                                 )
-                            ) { Text("Clear", fontSize = 10.sp) }
+                            ) { Text("Clear Cache", fontSize = 10.sp) }
                         }
+
+
+
                     }
                 }
             }

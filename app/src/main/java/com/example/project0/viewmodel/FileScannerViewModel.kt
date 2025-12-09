@@ -98,12 +98,16 @@ class FileScannerViewModel(
         viewModelScope.launch(io) {
             isScanning = true
             uploadStatus = "Scanning..."
+
+            files = emptyList()
+            scanTime = null
+
             val start = System.nanoTime()
             val result = scanFilesRecursively(root)
             scanTime = System.nanoTime() - start
             files = result
             isScanning = false
-            uploadStatus = "Done"
+            uploadStatus = "Done Scan Recursive"
         }
     }
 
@@ -111,7 +115,11 @@ class FileScannerViewModel(
         viewModelScope.launch(io) {
             isScanning = true
             uploadStatus = "Scanning..."
+
+            files = emptyList()
+            scanTime = null
             val start = System.nanoTime()
+
             val result = scanFilesIteratively(root)
             scanTime = System.nanoTime() - start
             files = result
@@ -123,6 +131,9 @@ class FileScannerViewModel(
     fun scanWithDiskCache(root: File) {
         viewModelScope.launch(io) {
             isScanning = true
+
+            files = emptyList()
+            scanTime = null
             val start = System.nanoTime()
 
             val cached = loadCacheBinaryFromDisk(root)
@@ -146,6 +157,9 @@ class FileScannerViewModel(
     fun scanWithMemoryCache(root: File) {
         viewModelScope.launch(io) {
             isScanning = true
+
+            files = emptyList()
+            scanTime = null
             val start = System.nanoTime()
 
             val cached = loadCacheBinaryFromMemory(root)
@@ -190,6 +204,14 @@ class FileScannerViewModel(
             }
         }
     }
+
+    fun clearList() {
+        files = emptyList()
+        selectedFiles.value = emptySet()
+        scanTime = null
+        uploadStatus = "List Cleared"
+    }
+
 
     fun clearCache() {
         memoryCacheBinary = null
@@ -267,6 +289,9 @@ class FileScannerViewModel(
             return
         }
 
+        isUploading = true
+        executionTime = null
+        uploadStatus = "Upload in Background..."
         val appContext = getApplication<Application>()
         val wm = WorkManager.getInstance(appContext)
         val cons = Constraints.Builder()
@@ -286,7 +311,7 @@ class FileScannerViewModel(
             wm.enqueue(req)
         }
 
-        uploadStatus = "Queued in Background"
+        uploadStatus = "Done Queued in Background !"
         clearSelection()
     }
 
